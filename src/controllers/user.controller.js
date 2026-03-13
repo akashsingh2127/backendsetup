@@ -186,4 +186,86 @@ const refreshAccessToken=asyncHandler(async(req,res,next)=>{
    }
 
 })
-export {registerUser,loginUser,logoutUser,refreshAccessToken}
+
+const changePassword=asyncHandler(async(req,res,next)=>{
+    // get user id from req.user
+    // get old password and new password from req.body
+    // find the user in the database
+    // check if old password is correct
+    // if correct then update the password with the new password
+    // send response
+    const {oldPassword, newPassword}= req.body
+    //we need the user and we also have the user id available in the req.user because we have the auth middleware which will verify the access token and will attach the user id in the req.user so we can directly use it here to find the user in the database
+
+    const user= await User.findById(req.user?._id)
+
+    //isPasswordCorrect is the method which we created in the user.model.js for verification and i treturns either true or false value so direclty in if else we can check for that and as we have created this method using userSchema.methods so we can directly use it here using (user) and as we are passing the old password in the req.body so we can directly use it here as well.
+    const isPasswordCorrect= await user.isPasswordCorrect(oldPassword)
+    if(!isPasswordCorrect){
+        throw new ApiError(401,"Old password is incorrect")
+    }
+    user.password=newPassword
+    await user.save({validateBeforeSave: false}) // as we have created the pre hook for encrypting the password before saving the user in the database so we need to use (validateBeforeSave: false) here as well to avoid the error of password is required because we are not providing the password in the req.body while changing the password but we are providing it in the user object so it will be encrypted before saving in the database and it will not throw any error for that.
+    return res.status(200).json(
+        new ApiResponse(200,{},"Password changed successfully"))
+})
+
+const getCurrentUser=asyncHandler(async(req,res,next)=>{
+    //directly we returning the user which we have attached in the req.user in the auth middleware because we have already fetched the user from the database in the auth middleware and we have attached it in the req.user so we can directly return it here 
+    return res.status(200).json(
+        200,req.user,"Current user fetched successfully") 
+
+})
+
+const updateAccountDetails=asyncHandler(async(req,res,next)=>{
+    //for this we need two middleware multer for accepting files and other to give access to the user who r logged in 
+    //for updating any file we should keep seperate controllers or endpoint for it -production based advise
+    const {fullName,email}=req.body
+    if(!fullName && !email){
+        throw new ApiError(400,"All fields r required to update")
+    }
+    //{new:true} is to return the updated user in the response and as we have created the method for generating access token in the user.model.js so we can directly use it here using (user) as well.
+    const user=await User.findByIdAndUpdate(req.user._id,{
+        $set:{fullName,email:email}
+    },{new:true}).select("-password -refreshToken")
+
+    return res.status(200).json(
+        new ApiResponse(200,user,"User details updated successfully")
+)})
+
+const updateUserAvatar=asyncHandler(async(req,res,next)=>{
+    const avatarLocalPath = req.file?.path;//here we took file not files as used for loginUser because there we needed avatarfile as well as coverImage but here we just need avatarFile\
+    if(!avatarLocalPath){
+        throw new ApiError(400,"Avatar file is required")
+    }
+    const avatar= await uploadOnCloudinary(avatarLocalPath)
+    if(!avatar.url){
+        throw new ApiError(400,"Something went wrong while uploading the avatar")
+    }
+   const user= await User.findByIdAndUpdate(req.user._id,{
+        $set:{avatar:avatar.url}
+    },{new:true}).select("-password -refreshToken")
+
+    return res.status(200).json(
+        new ApiResponse(200,user,"User avatar updated successfully")
+     )
+})
+const updateUserCoverImage=asyncHandler(async(req,res,next)=>{//exactly same logic as updateUserAvatar
+    const coverImageLocalPath = req.file?.path;
+    if(!coverImageLocalPath){
+        throw new ApiError(400,"Cover image file is required")
+    }
+    const coverImage= await uploadOnCloudinary(coverImageLocalPath)
+    if(!coverImage.url){
+        throw new ApiError(400,"Something went wrong while uploading the cover image")
+    }
+    const user= await User.findByIdAndUpdate(req.user._id,{
+        $set:{coverImage:coverImage.url}
+    },{new:true}).select("-password -refreshToken")
+    return res.status(200).json(
+        new ApiResponse(200,user,"User cover image updated successfully")
+     )
+})
+
+
+export {registerUser,loginUser,logoutUser,refreshAccessToken,changePassword,getCurrentUser,updateAccountDetails,updateUserAvatar,updateUserCoverImage}
