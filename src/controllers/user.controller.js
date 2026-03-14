@@ -212,8 +212,8 @@ const changePassword=asyncHandler(async(req,res,next)=>{
 
 const getCurrentUser=asyncHandler(async(req,res,next)=>{
     //directly we returning the user which we have attached in the req.user in the auth middleware because we have already fetched the user from the database in the auth middleware and we have attached it in the req.user so we can directly return it here 
-    return res.status(200).json(
-        200,req.user,"Current user fetched successfully") 
+    return res.status(200).json(new ApiResponse(
+        200,req.user,"Current user fetched successfully") )
 
 })
 
