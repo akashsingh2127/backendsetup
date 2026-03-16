@@ -267,5 +267,77 @@ const updateUserCoverImage=asyncHandler(async(req,res,next)=>{//exactly same log
      )
 })
 
+const getUserChannelProfile=asyncHandler(async(req,res,next)=>{
+    // get user id from req.params
+    // find the user in the database
+    // send response    
+    const {username}=req.params//we need to access the username from the req.params because we will be sending the username in the url while making the request for getting the user channel profile.
+    if(!username?.trim()){
+        throw new ApiError(400,"Username is required")
+    }// we will be directly using aggregate function of mongoose to get the user channel profile because we need to get the count of subscribers and channels subscribed to as well as we need to check whether the logged in user is subscribed to that channel or not and for that we need to use lookup and addFields in the aggregate function 
+        const channel = await User.aggregate([
+        { //in simple terms $match is used to filter the documents based on the condition we provide and here we are providing the condition to match the username with the username we are getting from the req.params and as we have stored the username in lowercase in the database so we are converting it to lowercase here as well to avoid any case sensitivity issue and if the username matches then it will return that document in the result of aggregate function and if it doesn't match then it will return an empty array in the result of aggregate function.
+            $match: {
+                username: username?.toLowerCase()
+            }
+        },
+        { // in simple terms $lookup is used to perform a left outer join with another collection and here we are performing a left outer join with the subscriptions collection to get the subscribers of that channel and we are matching the _id of the user with the channel field of the subscriptions collection and if it matches then it will return the subscriber in the subscribers array and if it doesn't match then it will return an empty array in the subscribers array.
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+        {//same logic as above
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo"
+            }
+        },
+        {// these stages are to get the number of subscribers and subscribed to
+            $addFields: {
+                subscribersCount: {
+                    $size: "$subscribers"//now the subscribers has become a field so we wil be using ($) in the front
+                },
+                channelsSubscribedToCount: {
+                    $size: "$subscribedTo"
+                },
+                isSubscribed: {
+                    $cond: {
+                        if: {$in: [req.user?._id, "$subscribers.subscriber"]},
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {// this stage is used to project the attributes we ant to show
+            $project: {
+                fullName: 1,
+                username: 1,
+                subscribersCount: 1,
+                channelsSubscribedToCount: 1,
+                isSubscribed: 1,
+                avatar: 1,
+                coverImage: 1,
+                email: 1
 
-export {registerUser,loginUser,logoutUser,refreshAccessToken,changePassword,getCurrentUser,updateAccountDetails,updateUserAvatar,updateUserCoverImage}
+            }
+        }
+    ])
+
+    if (!channel?.length) {
+        throw new ApiError(404, "channel does not exists")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, channel[0], "User channel fetched successfully")
+    )
+})
+
+export {registerUser,loginUser,logoutUser,refreshAccessToken,changePassword,getCurrentUser,updateAccountDetails,updateUserAvatar,updateUserCoverImage,getUserChannelProfile}
