@@ -340,4 +340,62 @@ const getUserChannelProfile=asyncHandler(async(req,res,next)=>{
     )
 })
 
-export {registerUser,loginUser,logoutUser,refreshAccessToken,changePassword,getCurrentUser,updateAccountDetails,updateUserAvatar,updateUserCoverImage,getUserChannelProfile}
+const getWatchHistory=asyncHandler(async(req,res,next)=>{
+    // get user id from req.user
+    // find the user in the database
+    // send response
+
+
+    //Note:- if we have not used nested pipelining and instead of that we have used normal lookup then we will get the details of the videos in the watch history but we won't be able to get the details of the owner of those videos. because here the documents will be created for the watchHistory but in that we also need to get the owner of the video so for that we need the owner of that specific video(document) so we r using nested pipelining in the lookup
+    const user=await User.aggregate([
+        {
+            $match:{
+                _id: new mongoose.Types.ObjectId(req.user._id)
+            }
+        },
+        {//we r using nested pipeline in lookup because we also want to get the owner details of the videos in the watch history and for that we need to use lookup again inside the pipeline of the first lookup and as we have created the method for generating access token in the user.model.js so we can directly use it here using (user) as well.
+            $lookup:{
+                from:"videos",
+                localField:"watchHistory",
+                foreignField:"_id",
+                as:"watchHistory",
+                pipeline:[
+                    {
+                        $lookup:{
+                            from:"users",
+                            localField:"owner",
+                            foreignField:"_id",
+                            as:"owner",
+                            pipeline:[
+                                {//we don't want to show all the details of the owner in the watch history we just want to show the full name, username and avatar of the owner so we will be using project stage to project only those fields.
+                                    $project:{
+                                        fullName:1,
+                                        username:1,
+                                        avatar:1
+                                    }
+                                }
+                            ]
+                        }
+
+                    },{//this becomes easy for the frontend to access the owner details of the video in the watch history because now the owner details are directly available in the owner field of the video document in the watch history instead of being an array of owner details 
+                            owner:{
+                                $first:"$owner" //as we know the owner will be only one for each video so we will be using $first to get the first element of the owner array which is the owner details. AND instead of using $first we could have used $arrayElemAt with index 0 as well to get the first element of the owner array but using $first is more cleaner and better way to do that.
+                            }
+                        }]
+                    }}
+                ])
+
+                return res.status(200).json(
+                    new ApiResponse(200,user[0].watchHistory,"User watch history fetched successfully")
+                 )
+            }
+        )
+
+
+export {registerUser,loginUser,logoutUser,refreshAccessToken,changePassword,getCurrentUser,updateAccountDetails,updateUserAvatar,updateUserCoverImage,getUserChannelProfile,getWatchHistory}
+
+
+
+
+
+//Note :- (user.req._id) gives a String but mongoDb needs it in ObjectId format so we need to convert it to ObjectId format using mongoose.Types.ObjectId(user.req._id) and as we have imported mongoose in the user.model.js so we can directly use it here as well. and as we have created the method for generating access token in the user.model.js so we can directly use it here using (user) as well.
