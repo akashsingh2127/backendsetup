@@ -399,3 +399,8 @@ export {registerUser,loginUser,logoutUser,refreshAccessToken,changePassword,getC
 
 
 //Note :- (user.req._id) gives a String but mongoDb needs it in ObjectId format so we need to convert it to ObjectId format using mongoose.Types.ObjectId(user.req._id) and as we have imported mongoose in the user.model.js so we can directly use it here as well. and as we have created the method for generating access token in the user.model.js so we can directly use it here using (user) as well.
+
+
+
+
+ 
