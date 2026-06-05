@@ -23,7 +23,7 @@ app.use(express.static("public"))
 app.use(cookieParser())//here too we have options but usually we don't need it 
 
 //routes imported here
-
+//and make sure to write the route properly
 import userRouter from "./routes/user.routes.js"
 app.use("/api/v1/users",userRouter)  //if the url finds /api/v1/users  it will redirect it to user.routes.js and there we can add as many route as we want this keeps our code clean 
 export { app }
